@@ -1,0 +1,10 @@
+mkdir -p combined
+
+#produce common json from both formats
+sort -u --parallel 8 -S 12G \
+  <( zcat data/2013* data/2014* | jq -c 'select(.payload.action == "started") | {user: ("https://api.github.com/users/" + .actor), item: .repository.url}' ) \
+  <( zcat data/2015* | jq -c 'select(.payload.action == "started") | {user: .actor.url, item: .repo.url}' ) | ruby -ne 'puts $_.chomp.gsub(/https:\/\/github.com/, "https://api.github.com/repos")' \
+| gzip > combined.allstars.jsonl.gz
+
+#count each item
+pv combined/allstars.jsonl.gz | zcat | jq -r '.item' | sort -S 7G | uniq -c > combined/counts.txt
